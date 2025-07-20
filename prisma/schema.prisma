@@ -1,0 +1,281 @@
+generator client {
+  provider        = "prisma-client-js"
+  binaryTargets   = ["native", "linux-musl"]
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgcrypto]
+}
+
+// Quiz models
+model Quiz {
+  id                       String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title                    String          @db.VarChar(200)
+  description              String?         @db.Text
+  topicId                  String          @map("topic_id") @db.Uuid
+  difficultyLevel          String          @default("easy") @map("difficulty_level") @db.VarChar(20)
+  targetAgeMin             Int             @default(8) @map("target_age_min")
+  targetAgeMax             Int             @default(18) @map("target_age_max")
+  timeLimitMinutes         Int             @default(10) @map("time_limit_minutes")
+  questionsCount           Int             @default(0) @map("questions_count")
+  passPercentage           Int             @default(70) @map("pass_percentage")
+  maxAttempts              Int             @default(3) @map("max_attempts")
+  pointsReward             Int             @default(50) @map("points_reward")
+  requiresContentCompletion Boolean        @default(false) @map("requires_content_completion")
+  requiredContentIds       Json            @default("[]") @map("required_content_ids") @db.JsonB
+  isPublished              Boolean         @default(false) @map("is_published")
+  createdAt                DateTime        @default(now()) @map("created_at") @db.Timestamp()
+  updatedAt                DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamp()
+  deletedAt                DateTime?       @map("deleted_at") @db.Timestamp()
+  createdBy                String?         @map("created_by") @db.Uuid
+  updatedBy                String?         @map("updated_by") @db.Uuid
+
+  questions                QuizQuestion[]
+  sessions                 QuizSession[]
+  interactionLogs          QuizInteractionLog[]
+
+  @@map("quizzes")
+}
+
+model QuizQuestion {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  quizId            String          @map("quiz_id") @db.Uuid
+  questionText      String          @map("question_text") @db.Text
+  questionType      String          @default("multiple_choice") @map("question_type") @db.VarChar(20)
+  explanation       String?         @db.Text
+  pointsValue       Int             @default(10) @map("points_value")
+  timeLimitSeconds  Int             @default(30) @map("time_limit_seconds")
+  imageUrl          String?         @map("image_url") @db.VarChar(500)
+  audioUrl          String?         @map("audio_url") @db.VarChar(500)
+  sortOrder         Int             @default(0) @map("sort_order")
+  difficultyWeight  Decimal         @default(1.00) @map("difficulty_weight") @db.Decimal(3, 2)
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamp()
+  updatedAt         DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamp()
+  deletedAt         DateTime?       @map("deleted_at") @db.Timestamp()
+  createdBy         String?         @map("created_by") @db.Uuid
+  updatedBy         String?         @map("updated_by") @db.Uuid
+
+  quiz              Quiz            @relation(fields: [quizId], references: [id])
+  options           QuizOption[]
+  answers           QuizAnswer[]
+  performanceLogs   QuestionPerformanceLog[]
+
+  @@map("quiz_questions")
+}
+
+model QuizOption {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  questionId        String          @map("question_id") @db.Uuid
+  optionText        String          @map("option_text") @db.Text
+  isCorrect         Boolean         @default(false) @map("is_correct")
+  sortOrder         Int             @default(0) @map("sort_order")
+  explanation       String?         @db.Text
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamp()
+  updatedAt         DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamp()
+
+  question          QuizQuestion    @relation(fields: [questionId], references: [id])
+  answers           QuizAnswer[]
+  performanceLogs   QuestionPerformanceLog[]
+
+  @@map("quiz_options")
+}
+
+model QuizSession {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String          @map("user_id") @db.Uuid
+  quizId            String          @map("quiz_id") @db.Uuid
+  sessionToken      String?         @unique @map("session_token") @db.VarChar(500)
+  questionsTotal    Int             @map("questions_total")
+  questionsAnswered Int             @default(0) @map("questions_answered")
+  questionsCorrect  Int             @default(0) @map("questions_correct")
+  pointsEarned      Int             @default(0) @map("points_earned")
+  percentageScore   Decimal         @default(0.00) @map("percentage_score") @db.Decimal(5, 2)
+  timeTakenSeconds  Int?            @map("time_taken_seconds")
+  status            String          @default("started") @db.VarChar(20)
+  passed            Boolean?
+  startedAt         DateTime        @default(now()) @map("started_at") @db.Timestamp()
+  completedAt       DateTime?       @map("completed_at") @db.Timestamp()
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamp()
+  updatedAt         DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamp()
+
+  quiz              Quiz            @relation(fields: [quizId], references: [id])
+  answers           QuizAnswer[]
+  interactionLogs   QuizInteractionLog[]
+
+  @@map("quiz_sessions")
+}
+
+model QuizAnswer {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId         String          @map("session_id") @db.Uuid
+  questionId        String          @map("question_id") @db.Uuid
+  selectedOptionId  String?         @map("selected_option_id") @db.Uuid
+  userAnswerText    String?         @map("user_answer_text") @db.Text
+  isCorrect         Boolean         @map("is_correct")
+  pointsEarned      Int             @default(0) @map("points_earned")
+  timeTakenSeconds  Int?            @map("time_taken_seconds")
+  answerConfidence  Int?            @map("answer_confidence")
+  answeredAt        DateTime        @default(now()) @map("answered_at") @db.Timestamp()
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamp()
+
+  session           QuizSession     @relation(fields: [sessionId], references: [id])
+  question          QuizQuestion    @relation(fields: [questionId], references: [id])
+  selectedOption    QuizOption?     @relation(fields: [selectedOptionId], references: [id])
+
+  @@map("quiz_answers")
+}
+
+model QuizInteractionLog {
+  id                    String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                String      @map("user_id") @db.Uuid
+  quizId                String      @map("quiz_id") @db.Uuid
+  sessionId             String      @map("session_id") @db.Uuid
+  attemptNumber         Int         @map("attempt_number")
+  finalScorePercentage  Decimal     @map("final_score_percentage") @db.Decimal(5, 2)
+  questionsTotal        Int         @map("questions_total")
+  questionsCorrect      Int         @map("questions_correct")
+  passed                Boolean
+  totalTimeSeconds      Int         @map("total_time_seconds")
+  avgTimePerQuestion    Decimal?    @map("avg_time_per_question") @db.Decimal(6, 2)
+  deviceType            String?     @map("device_type") @db.VarChar(15)
+  timeOfDay             String?     @map("time_of_day") @db.VarChar(10)
+  gaveUp                Boolean     @default(false) @map("gave_up")
+  helpUsed              Boolean     @default(false) @map("help_used")
+  postQuizFeeling       String?     @map("post_quiz_feeling") @db.VarChar(15)
+  createdAt             DateTime    @default(now()) @map("created_at") @db.Timestamp()
+
+  quiz                  Quiz        @relation(fields: [quizId], references: [id])
+  session               QuizSession @relation(fields: [sessionId], references: [id])
+
+  @@index([userId], name: "idx_quiz_logs_user")
+  @@index([quizId], name: "idx_quiz_logs_quiz")
+  @@index([userId, quizId], name: "idx_quiz_logs_user_quiz")
+  @@index([attemptNumber], name: "idx_quiz_logs_attempt")
+  @@index([passed], name: "idx_quiz_logs_passed")
+  @@index([createdAt], name: "idx_quiz_logs_created")
+  @@map("quiz_interaction_logs")
+}
+
+model QuestionPerformanceLog {
+  id                String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  questionId        String      @map("question_id") @db.Uuid
+  userId            String      @map("user_id") @db.Uuid
+  wasCorrect        Boolean     @map("was_correct")
+  timeTakenSeconds  Int         @map("time_taken_seconds")
+  selectedOptionId  String?     @map("selected_option_id") @db.Uuid
+  questionOrder     Int?        @map("question_order")
+  userFatigueLevel  String?     @map("user_fatigue_level") @db.VarChar(10)
+  tookLongTime      Boolean?    @map("took_long_time")
+  changedAnswer     Boolean     @default(false) @map("changed_answer")
+  createdAt         DateTime    @default(now()) @map("created_at") @db.Timestamp()
+
+  question          QuizQuestion @relation(fields: [questionId], references: [id])
+  selectedOption    QuizOption?  @relation(fields: [selectedOptionId], references: [id])
+
+  @@index([questionId], name: "idx_question_perf_question")
+  @@index([userId], name: "idx_question_perf_user")
+  @@index([wasCorrect], name: "idx_question_perf_correct")
+  @@index([createdAt], name: "idx_question_perf_created")
+  @@map("question_performance_logs")
+}
+
+// Challenge models
+model Challenge {
+  id                      String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title                   String                @db.VarChar(200)
+  description             String?               @db.Text
+  instructions            Json                  @default("{}") @db.JsonB
+  category                String?               @db.VarChar(100)
+  difficulty              String                @default("easy") @db.VarChar(20)
+  pointsReward            Int                   @default(50) @map("points_reward")
+  estimatedDurationDays   Int                   @default(7) @map("estimated_duration_days")
+  validationType          String                @default("photo") @map("validation_type") @db.VarChar(20)
+  validationCriteria      Json                  @default("{}") @map("validation_criteria") @db.JsonB
+  maxParticipants         Int?                  @map("max_participants")
+  currentParticipants     Int                   @default(0) @map("current_participants")
+  startDate               DateTime?             @map("start_date") @db.Date
+  endDate                 DateTime?             @map("end_date") @db.Date
+  isRecurring             Boolean               @default(false) @map("is_recurring")
+  recurrencePattern       Json                  @default("{}") @map("recurrence_pattern") @db.JsonB
+  ageRestrictions         Json                  @default("{}") @map("age_restrictions") @db.JsonB
+  featuredUntil           DateTime?             @map("featured_until") @db.Timestamp()
+  createdAt               DateTime              @default(now()) @map("created_at") @db.Timestamp()
+  updatedAt               DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamp()
+  deletedAt               DateTime?             @map("deleted_at") @db.Timestamp()
+  createdBy               String?               @map("created_by") @db.Uuid
+  updatedBy               String?               @map("updated_by") @db.Uuid
+
+  userChallenges          UserChallenge[]
+  tutorSubmissions        TutorSubmission[]
+
+  @@map("challenges")
+}
+
+model UserChallenge {
+  id                      String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                  String                @map("user_id") @db.Uuid
+  challengeId             String                @map("challenge_id") @db.Uuid
+  status                  String                @default("joined") @db.VarChar(20)
+  progressPercentage      Int                   @default(0) @map("progress_percentage")
+  pointsEarned            Int                   @default(0) @map("points_earned")
+  bonusPoints             Int                   @default(0) @map("bonus_points")
+  evidenceCount           Int                   @default(0) @map("evidence_count")
+  notes                   String?               @db.Text
+  joinedAt                DateTime              @default(now()) @map("joined_at") @db.Timestamp()
+  startedAt               DateTime?             @map("started_at") @db.Timestamp()
+  submittedAt             DateTime?             @map("submitted_at") @db.Timestamp()
+  completedAt             DateTime?             @map("completed_at") @db.Timestamp()
+  createdAt               DateTime              @default(now()) @map("created_at") @db.Timestamp()
+  updatedAt               DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamp()
+
+  challenge               Challenge             @relation(fields: [challengeId], references: [id])
+  challengeSubmissions    ChallengeSubmission[]
+
+  @@unique([userId, challengeId])
+  @@map("user_challenges")
+}
+
+model ChallengeSubmission {
+  id                      String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userChallengeId         String                @map("user_challenge_id") @db.Uuid
+  submissionType          String                @default("photo") @map("submission_type") @db.VarChar(20)
+  contentText             String?               @map("content_text") @db.Text
+  mediaUrls               Json                  @default("[]") @map("media_urls") @db.JsonB
+  locationData            Json                  @default("{}") @map("location_data") @db.JsonB
+  measurementData         Json                  @default("{}") @map("measurement_data") @db.JsonB
+  metadata                Json                  @default("{}") @db.JsonB
+  validationStatus        String                @default("pending") @map("validation_status") @db.VarChar(20)
+  validationScore         Int?                  @map("validation_score")
+  validationNotes         String?               @map("validation_notes") @db.Text
+  validatedBy             String?               @map("validated_by") @db.Uuid
+  validatedAt             DateTime?             @map("validated_at") @db.Timestamp()
+  autoValidationData      Json                  @default("{}") @map("auto_validation_data") @db.JsonB
+  submissionNumber        Int                   @default(1) @map("submission_number")
+  createdAt               DateTime              @default(now()) @map("created_at") @db.Timestamp()
+  updatedAt               DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamp()
+
+  userChallenge           UserChallenge         @relation(fields: [userChallengeId], references: [id])
+  tutorSubmissions        TutorSubmission[]
+
+  @@map("challenge_submissions")
+}
+
+model TutorSubmission {
+  id                      String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  minorUserId             String                @map("minor_user_id") @db.Uuid
+  tutorUserId             String                @map("tutor_user_id") @db.Uuid
+  challengeId             String                @map("challenge_id") @db.Uuid
+  submissionId            String                @map("submission_id") @db.Uuid
+  tutorConfirmation       String?               @map("tutor_confirmation") @db.Text
+  pointsDistribution      Json                  @default("{}") @map("points_distribution") @db.JsonB
+  createdAt               DateTime              @default(now()) @map("created_at") @db.Timestamp()
+  updatedAt               DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamp()
+
+  challenge               Challenge             @relation(fields: [challengeId], references: [id])
+  submission              ChallengeSubmission   @relation(fields: [submissionId], references: [id])
+
+  @@map("tutor_submissions")
+}
