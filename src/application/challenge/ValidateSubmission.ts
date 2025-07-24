@@ -22,7 +22,6 @@ export class ValidateSubmission {
     // Validate submission
     const validatedSubmission = await this.submissionRepository.validateSubmission(
       data.submissionId,
-      data.validatedBy,
       data.validationScore,
       data.validationNotes
     );

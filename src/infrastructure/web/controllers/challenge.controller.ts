@@ -343,9 +343,6 @@ export const validateSubmission = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Submission ID is required' });
     }
     
-    if (!validatedBy) {
-      return res.status(401).json({ message: 'Validator ID is required' });
-    }
     
     if (typeof validationScore !== 'number' || validationScore < 0 || validationScore > 100) {
       return res.status(400).json({ message: 'Validation score must be a number between 0 and 100' });
@@ -354,7 +351,6 @@ export const validateSubmission = async (req: Request, res: Response) => {
     const validateSubmissionUseCase = container.get(ValidateSubmission);
     const result = await validateSubmissionUseCase.execute({
       submissionId,
-      validatedBy,
       validationScore,
       validationNotes
     });

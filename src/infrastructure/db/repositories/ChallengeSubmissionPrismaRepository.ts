@@ -48,14 +48,13 @@ export class ChallengeSubmissionPrismaRepository implements ChallengeSubmissionR
     });
   }
 
-  async validateSubmission(id: string, validatedBy: string, validationScore: number, validationNotes?: string): Promise<ChallengeSubmission> {
+  async validateSubmission(id: string, validationScore: number, validationNotes?: string): Promise<ChallengeSubmission> {
     return this.prisma.challengeSubmission.update({
       where: { id },
       data: {
         validationStatus: 'validated',
         validationScore,
         validationNotes,
-        validatedBy,
         validatedAt: new Date(),
         updatedAt: new Date()
       }
