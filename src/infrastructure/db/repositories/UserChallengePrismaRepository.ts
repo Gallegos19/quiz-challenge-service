@@ -9,8 +9,11 @@ export class UserChallengePrismaRepository implements UserChallengeRepository {
   constructor(@inject(PrismaClient) private prisma: PrismaClient) {}
 
   private validateUuid(id: string, fieldName: string): void {
-    if (!uuidValidate(id)) {
-      throw new Error(`Invalid ${fieldName} format: ${id}. Must be a valid UUID.`);
+    // Handle composite IDs by extracting the first UUID part
+    const uuidPart = id.includes('_') ? id.split('_')[0] : id;
+    
+    if (!uuidValidate(uuidPart)) {
+      throw new Error(`Invalid ${fieldName} format: ${id}. Must be a valid UUID or composite ID starting with UUID.`);
     }
   }
 
@@ -37,8 +40,12 @@ export class UserChallengePrismaRepository implements UserChallengeRepository {
 
   async getUserChallengeById(id: string): Promise<UserChallenge | null> {
     this.validateUuid(id, 'id');
+    
+    // If it's a composite ID, extract the actual UUID part for the database query
+    const actualId = id.includes('_') ? id.split('_')[0] : id;
+    
     return this.prisma.userChallenge.findUnique({
-      where: { id }
+      where: { id: actualId }
     });
   }
 
@@ -56,8 +63,12 @@ export class UserChallengePrismaRepository implements UserChallengeRepository {
 
   async updateUserChallenge(id: string, data: Partial<UserChallenge>): Promise<UserChallenge> {
     this.validateUuid(id, 'id');
+    
+    // If it's a composite ID, extract the actual UUID part for the database query
+    const actualId = id.includes('_') ? id.split('_')[0] : id;
+    
     return this.prisma.userChallenge.update({
-      where: { id },
+      where: { id: actualId },
       data: {
         ...data,
         updatedAt: new Date()
@@ -66,8 +77,13 @@ export class UserChallengePrismaRepository implements UserChallengeRepository {
   }
 
   async updateProgress(id: string, progressPercentage: number): Promise<UserChallenge> {
+    this.validateUuid(id, 'id');
+    
+    // If it's a composite ID, extract the actual UUID part for the database query
+    const actualId = id.includes('_') ? id.split('_')[0] : id;
+    
     return this.prisma.userChallenge.update({
-      where: { id },
+      where: { id: actualId },
       data: {
         progressPercentage,
         updatedAt: new Date()
@@ -76,9 +92,14 @@ export class UserChallengePrismaRepository implements UserChallengeRepository {
   }
 
   async addPoints(id: string, points: number, isBonus: boolean = false): Promise<UserChallenge> {
+    this.validateUuid(id, 'id');
+    
+    // If it's a composite ID, extract the actual UUID part for the database query
+    const actualId = id.includes('_') ? id.split('_')[0] : id;
+    
     if (isBonus) {
       return this.prisma.userChallenge.update({
-        where: { id },
+        where: { id: actualId },
         data: {
           bonusPoints: {
             increment: points
@@ -88,7 +109,7 @@ export class UserChallengePrismaRepository implements UserChallengeRepository {
       });
     } else {
       return this.prisma.userChallenge.update({
-        where: { id },
+        where: { id: actualId },
         data: {
           pointsEarned: {
             increment: points
@@ -100,8 +121,13 @@ export class UserChallengePrismaRepository implements UserChallengeRepository {
   }
 
   async completeChallenge(id: string): Promise<UserChallenge> {
+    this.validateUuid(id, 'id');
+    
+    // If it's a composite ID, extract the actual UUID part for the database query
+    const actualId = id.includes('_') ? id.split('_')[0] : id;
+    
     return this.prisma.userChallenge.update({
-      where: { id },
+      where: { id: actualId },
       data: {
         status: 'completed',
         progressPercentage: 100,
@@ -112,8 +138,13 @@ export class UserChallengePrismaRepository implements UserChallengeRepository {
   }
 
   async incrementEvidenceCount(id: string): Promise<UserChallenge> {
+    this.validateUuid(id, 'id');
+    
+    // If it's a composite ID, extract the actual UUID part for the database query
+    const actualId = id.includes('_') ? id.split('_')[0] : id;
+    
     return this.prisma.userChallenge.update({
-      where: { id },
+      where: { id: actualId },
       data: {
         evidenceCount: {
           increment: 1
